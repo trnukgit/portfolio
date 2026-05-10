@@ -1,0 +1,31 @@
+# Build
+dist/
+.astro/
+
+# Dependencies
+node_modules/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Notion-fetched assets (regenerated each build)
+public/images/works/
+public/images/hero/
+src/data/works.ja.json
+src/data/works.en.json
+src/data/profile.ja.json
+src/data/profile.en.json
+src/data/viewers.json
+src/data/hero.json
+# 注意: public/images/viewers/ と public/images/profile/ は
+# Notion 未設定でも使えるよう、ここでは除外せずコミット可能のままにします。
+# Notion で管理する場合は build 時に上書きされます。
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

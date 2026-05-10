@@ -1,0 +1,21 @@
+{
+  "name": "portfolio",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/fetch-notion.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/fetch-notion.mjs",
+    "build": "astro build",
+    "preview": "astro preview",
+    "fetch": "node scripts/fetch-notion.mjs"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "astro": "^4.16.0",
+    "image-size": "^2.0.2",
+    "marked": "^14.1.0",
+    "notion-to-md": "^3.1.1"
+  }
+}

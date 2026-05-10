@@ -1,0 +1,360 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+import { marked } from 'marked';
+import type { Work } from '../lib/types';
+import { strings, type Lang } from '../config';
+import { url, workUrl, langHome } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+  work: Work;
+  prev: Work | null;
+  next: Work | null;
+  hasOtherLang: boolean;
+}
+
+const { lang, work, prev, next, hasOtherLang } = Astro.props;
+const t = strings(lang);
+const otherLang: Lang = lang === 'ja' ? 'en' : 'ja';
+
+const altLangPath = hasOtherLang
+  ? workUrl(otherLang, work.slug)
+  : langHome(otherLang);
+
+const bodyHtml = work.bodyMarkdown ? await marked.parse(work.bodyMarkdown) : '';
+
+const dateStr = work.date
+  ? new Date(work.date).toLocaleDateString(
+      lang === 'ja' ? 'ja-JP' : 'en-US',
+      { year: 'numeric', month: 'long' }
+    )
+  : null;
+---
+
+<Layout
+  lang={lang}
+  altLangPath={altLangPath}
+  title={work.title}
+  description={work.summary || work.catchphrase}
+>
+  <Header lang={lang} altLangPath={altLangPath} />
+
+  <main class="detail">
+    <article>
+      <section class="hero">
+        <div class="container">
+          <a href={`${langHome(lang)}#works`} class="back">
+            <span aria-hidden="true">←</span> {t.detail.back}
+          </a>
+
+          <div class="hero-grid">
+            <div class="hero-text">
+              <p class="catchphrase">{work.catchphrase}</p>
+              <h1 class="title">{work.title}</h1>
+
+              {work.summary && <p class="summary">{work.summary}</p>}
+
+              <dl class="facts">
+                {dateStr && (
+                  <>
+                    <dt>{t.detail.date}</dt>
+                    <dd>{dateStr}</dd>
+                  </>
+                )}
+                {work.tags?.length > 0 && (
+                  <>
+                    <dt>{t.detail.tags}</dt>
+                    <dd>{work.tags.join(' · ')}</dd>
+                  </>
+                )}
+                {work.url && (
+                  <>
+                    <dt>{t.detail.link}</dt>
+                    <dd>
+                      <a href={work.url} target="_blank" rel="noopener noreferrer">
+                        {work.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                        <span aria-hidden="true">↗</span>
+                      </a>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </div>
+
+            <div class="cover">
+              {work.cover ? (
+                <img class="art" src={url(work.cover)} alt={work.title} />
+              ) : (
+                <div class="art-fallback" aria-hidden="true"></div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {bodyHtml && (
+        <section class="body">
+          <div class="container">
+            <div class="prose" set:html={bodyHtml} />
+          </div>
+        </section>
+      )}
+
+      <nav class="pager">
+        <div class="container">
+          <hr class="rule" />
+          <div class="pager-inner">
+            {prev ? (
+              <a class="pager-link prev" href={workUrl(lang, prev.slug)}>
+                <span class="dir">← {t.detail.prev}</span>
+                <span class="t">{prev.title}</span>
+              </a>
+            ) : <span />}
+            {next ? (
+              <a class="pager-link next" href={workUrl(lang, next.slug)}>
+                <span class="dir">{t.detail.next} →</span>
+                <span class="t">{next.title}</span>
+              </a>
+            ) : <span />}
+          </div>
+        </div>
+      </nav>
+    </article>
+  </main>
+
+  <Footer lang={lang} />
+</Layout>
+
+<style>
+  .detail { padding-top: clamp(2rem, 5vw, 4rem); }
+
+  .back {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 2.4rem;
+    transition: color 0.2s var(--ease);
+  }
+  .back:hover { color: var(--ink); }
+
+  .hero {
+    padding-block: clamp(2rem, 5vw, 4rem) clamp(3rem, 6vw, 5rem);
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: clamp(2.5rem, 5vw, 4rem);
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  @media (min-width: 920px) {
+    .hero-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(3rem, 6vw, 5rem);
+    }
+  }
+
+  .catchphrase {
+    margin: 0 0 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .title {
+    margin: 0 0 1.5rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .summary {
+    margin: 0 0 2.5rem;
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 42ch;
+  }
+
+  .facts {
+    display: grid;
+    grid-template-columns: 5rem 1fr;
+    gap: 0.6rem 1.2rem;
+    border-top: 1px solid var(--line);
+    padding-top: 1.5rem;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .facts dt {
+    color: var(--ink-muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding-top: 0.15rem;
+  }
+
+  .facts dd {
+    margin: 0;
+    color: var(--ink);
+  }
+
+  .facts a {
+    color: var(--ink);
+    border-bottom: 1px solid var(--accent);
+  }
+
+  /* Cover image — clean white frame, no shadow */
+  .cover {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: var(--frame-white);
+    padding: 14px;
+  }
+
+  .art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .art-fallback {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-deep);
+  }
+
+  /* Body */
+  .body {
+    padding-block: clamp(2rem, 5vw, 4rem);
+  }
+
+  .prose {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--ink-soft);
+    max-width: 700px;
+    margin-inline: auto;
+  }
+
+  .prose :global(h1),
+  .prose :global(h2),
+  .prose :global(h3) {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin-top: 2.2em;
+    margin-bottom: 0.6em;
+  }
+
+  .prose :global(h2) { font-size: 1.5rem; }
+  .prose :global(h3) { font-size: 1.2rem; }
+
+  .prose :global(p) { margin: 0 0 1.4em; }
+
+  .prose :global(img) {
+    margin: 2em 0;
+    width: 100%;
+  }
+
+  .prose :global(blockquote) {
+    border-left: 2px solid var(--accent);
+    padding-left: 1.2em;
+    color: var(--ink);
+    font-size: 1.1rem;
+    margin: 2em 0;
+  }
+
+  .prose :global(a) {
+    color: var(--ink);
+    border-bottom: 1px solid var(--accent);
+  }
+
+  .prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-deep);
+    padding: 0.1em 0.4em;
+  }
+
+  .prose :global(pre) {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 1.2em;
+    overflow-x: auto;
+    font-size: 0.85em;
+  }
+
+  .prose :global(pre code) {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+  }
+
+  .prose :global(ul), .prose :global(ol) { padding-left: 1.4em; }
+  .prose :global(li) { margin: 0.4em 0; }
+  .prose :global(hr) { border: 0; border-top: 1px solid var(--line); margin: 2.5em 0; }
+
+  /* Pager */
+  .pager { padding-block: 2rem; }
+
+  .rule {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 0 0 2rem;
+  }
+
+  .pager-inner {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+  }
+
+  .pager-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 45%;
+  }
+
+  .pager-link.next {
+    text-align: right;
+    align-items: flex-end;
+  }
+
+  .pager-link .dir {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .pager-link .t {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 1.05rem;
+    color: var(--ink);
+    transition: color 0.2s var(--ease);
+  }
+
+  .pager-link:hover .t { color: var(--ink-soft); }
+  .pager-link:hover .dir { color: var(--accent-deep); }
+</style>

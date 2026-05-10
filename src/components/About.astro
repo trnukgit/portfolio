@@ -1,0 +1,163 @@
+---
+// About.astro — モダン・ミニマル
+//
+// データソース:
+//   src/data/profile.{ja,en}.json — Notion の Profile DB から fetch
+//
+// Notion の Profile DB が未設定でも壊れないよう、空オブジェクトに
+// フォールバックする。bio が空のときはセクション全体を非表示にする。
+import { marked } from 'marked';
+import { strings, type Lang } from '../config';
+import type { Profile } from '../lib/types';
+import { EMPTY_PROFILE } from '../lib/types';
+import { url } from '../lib/url';
+
+import profileJaData from '../data/profile.ja.json';
+import profileEnData from '../data/profile.en.json';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = strings(lang);
+const raw = lang === 'en' ? profileEnData : profileJaData;
+const profile: Profile = (raw as Profile) ?? EMPTY_PROFILE;
+
+const bioHtml = profile.bio ? await marked.parse(profile.bio) : '';
+const hasIdentity = !!(profile.name || profile.affiliation || profile.photo);
+const hasContent = hasIdentity || !!bioHtml;
+---
+
+{hasContent && (
+  <section id="about" class="about-section">
+    <div class="container">
+      <p class="eyebrow">{t.about.eyebrow}</p>
+
+      {hasIdentity && (
+        <div class="identity">
+          {profile.photo && (
+            <img
+              class="photo"
+              src={url(profile.photo)}
+              alt={profile.name || 'Profile photo'}
+              loading="lazy"
+            />
+          )}
+          <div class="info">
+            {profile.name && <p class="name">{profile.name}</p>}
+            {profile.affiliation && <p class="affiliation">{profile.affiliation}</p>}
+          </div>
+        </div>
+      )}
+
+      {bioHtml && (
+        <div class="prose" set:html={bioHtml} />
+      )}
+    </div>
+  </section>
+)}
+
+<style>
+  .about-section {
+    padding-block: clamp(4rem, 9vw, 7rem);
+    border-top: 1px solid var(--line);
+    /* プロフィール写真の大きさ。モバイル小さめ、PC 大きめ */
+    --profile-photo-size: 64px;
+  }
+
+  /* PC ではプロフィール写真を大きく */
+  @media (min-width: 760px) {
+    .about-section {
+      --profile-photo-size: 112px;
+    }
+  }
+
+  .eyebrow {
+    margin: 0 0 2rem;
+  }
+
+  /* Profile identity row */
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 1.4rem;
+    margin-bottom: 2.2rem;
+  }
+
+  .photo {
+    width: var(--profile-photo-size);
+    height: var(--profile-photo-size);
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-deep);
+    flex-shrink: 0;
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .name {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    line-height: 1.3;
+  }
+
+  .affiliation {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+
+  /* Bio prose — clean sans, no dropcap, no special first paragraph */
+  .prose {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--ink-soft);
+    max-width: 60ch;
+  }
+
+  .prose :global(p) {
+    margin: 0 0 1.2em;
+  }
+
+  .prose :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .prose :global(a) {
+    color: var(--ink);
+    border-bottom: 1px solid var(--accent);
+    transition: background 0.2s var(--ease);
+    padding: 0 1px;
+  }
+
+  .prose :global(a:hover) {
+    background: var(--accent);
+  }
+
+  .prose :global(strong) {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .prose :global(ul),
+  .prose :global(ol) {
+    padding-left: 1.2em;
+  }
+
+  .prose :global(li) {
+    margin: 0.4em 0;
+  }
+</style>

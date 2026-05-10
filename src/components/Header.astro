@@ -1,0 +1,128 @@
+---
+import { strings, type Lang } from '../config';
+import { langHome } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+  altLangPath: string;
+}
+
+const { lang, altLangPath } = Astro.props;
+const t = strings(lang);
+const home = langHome(lang);
+const otherLang: Lang = lang === 'ja' ? 'en' : 'ja';
+---
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href={home} class="wordmark">{t.name}</a>
+
+    <div class="right">
+      <nav class="nav" aria-label={lang === 'ja' ? 'ナビゲーション' : 'Navigation'}>
+        <a href={`${home}#works`}>{t.nav.works}</a>
+        <a href={`${home}#about`}>{t.nav.about}</a>
+        <a href={`${home}#contact`}>{t.nav.contact}</a>
+      </nav>
+
+      <div class="lang-switch" aria-label={lang === 'ja' ? '言語切替' : 'Language'}>
+        <span class="active" aria-current="true">{lang.toUpperCase()}</span>
+        <span class="sep" aria-hidden="true">/</span>
+        <a href={altLangPath} hreflang={otherLang}>{otherLang.toUpperCase()}</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 1rem;
+    gap: 1.2rem;
+  }
+
+  .wordmark {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .right {
+    display: flex;
+    align-items: center;
+    gap: clamp(1rem, 3vw, 2rem);
+  }
+
+  .nav {
+    display: flex;
+    gap: clamp(1rem, 3vw, 2rem);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .nav a {
+    color: var(--ink-soft);
+    transition: color 0.2s var(--ease);
+  }
+
+  .nav a:hover {
+    color: var(--ink);
+  }
+
+  .lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-left: clamp(0.8rem, 2vw, 1.4rem);
+    margin-left: clamp(0.4rem, 1.5vw, 1rem);
+    border-left: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+  }
+
+  .lang-switch .active {
+    color: var(--ink);
+    font-weight: 500;
+    /* Lime accent underline for active language */
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+
+  .lang-switch .sep {
+    color: var(--ink-muted);
+    opacity: 0.5;
+  }
+
+  .lang-switch a {
+    color: var(--ink-muted);
+    transition: color 0.2s var(--ease);
+  }
+
+  .lang-switch a:hover {
+    color: var(--ink);
+  }
+
+  @media (max-width: 540px) {
+    .nav { gap: 1rem; }
+    .nav a:nth-child(3) { display: none; }
+  }
+
+  @media (max-width: 380px) {
+    .nav a:nth-child(2) { display: none; }
+  }
+</style>

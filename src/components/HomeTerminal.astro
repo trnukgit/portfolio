@@ -1,0 +1,245 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+import ThumbCard from './ThumbCard.astro';
+import About from './About.astro';
+import { strings, TERMINAL, type Lang } from '../config';
+import type { Work, Hero } from '../lib/types';
+import { langHome, url } from '../lib/url';
+
+import heroData from '../data/hero.json';
+
+interface Props {
+  lang: Lang;
+  works: Work[];
+}
+
+const { lang, works } = Astro.props;
+const t = strings(lang);
+const altLangPath = langHome(lang === 'ja' ? 'en' : 'ja');
+
+// Hero (image + video, both PC/Mobile pairs)
+const hero = (heroData ?? {}) as Hero;
+const videoDesktop = hero.video;
+const videoMobile = hero.videoMobile || hero.video;
+const imageDesktop = hero.image;
+const imageMobile = hero.imageMobile || hero.image;
+
+// 動画と画像、どちらかでも 1 つあればヒーローを描画する
+const hasMedia = !!(videoDesktop || videoMobile || imageDesktop || imageMobile);
+---
+
+<Layout lang={lang} altLangPath={altLangPath}>
+  <Header lang={lang} altLangPath={altLangPath} />
+
+  <main class="terminal-main">
+    <!-- ===== Hero ===== -->
+    <section class="t-hero">
+      {hasMedia && (
+        <div class="t-hero-media" aria-hidden="true">
+          {videoDesktop ? (
+            <video
+              class="t-hero-video t-hero-video--desktop"
+              src={url(videoDesktop)}
+              poster={imageDesktop ? url(imageDesktop) : undefined}
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="metadata"
+            />
+          ) : imageDesktop && (
+            <img
+              class="t-hero-video t-hero-video--desktop"
+              src={url(imageDesktop)}
+              alt=""
+              loading="eager"
+            />
+          )}
+
+          {videoMobile && videoMobile !== videoDesktop ? (
+            <video
+              class="t-hero-video t-hero-video--mobile"
+              src={url(videoMobile)}
+              poster={imageMobile ? url(imageMobile) : undefined}
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="metadata"
+            />
+          ) : imageMobile && imageMobile !== imageDesktop && (
+            <img
+              class="t-hero-video t-hero-video--mobile"
+              src={url(imageMobile)}
+              alt=""
+              loading="eager"
+            />
+          )}
+        </div>
+      )}
+
+      <div class="container t-hero-text">
+        <p class="t-prompt">
+          <span class="caret">&gt;</span> {t.year}
+        </p>
+        <h1 class="t-hero-title">{TERMINAL.heroText}</h1>
+      </div>
+    </section>
+
+    <!-- ===== Works grid (3:4 thumbnails) ===== -->
+    <section id="works" class="t-works">
+      <div class="container">
+        <header class="t-works-head">
+          <p class="t-eyebrow"><span class="caret">/</span> works</p>
+          <p class="t-count">
+            {String(works.length).padStart(2, '0')} {lang === 'ja' ? '件' : 'items'}
+          </p>
+        </header>
+
+        {works.length === 0 ? (
+          <div class="t-empty">
+            <p>{t.works.empty}</p>
+          </div>
+        ) : (
+          <div class="t-grid">
+            {works.map((w, i) => (
+              <ThumbCard work={w} index={i} lang={lang} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+
+    <About lang={lang} />
+  </main>
+
+  <Footer lang={lang} />
+</Layout>
+
+<style>
+  .terminal-main {
+    /* Terminal モード固有の見た目調整があればここに */
+  }
+
+  /* ============================================================
+     Hero
+     ============================================================ */
+  .t-hero {
+    position: relative;
+    padding-block: clamp(2.5rem, 5vw, 4rem) clamp(2rem, 4vw, 3rem);
+  }
+
+  .t-hero-media {
+    width: 100%;
+    aspect-ratio: var(--t-hero-aspect, 16 / 9);
+    overflow: hidden;
+    background: var(--bg-deep);
+    border: 1px solid var(--ink);
+    margin-bottom: clamp(1.2rem, 2.5vw, 2rem);
+  }
+
+  .t-hero-video {
+    width: 100%;
+    height: 100%;
+    object-fit: var(--t-hero-fit, cover);
+    object-position: var(--t-hero-position, center center);
+    display: block;
+  }
+
+  /* desktop / mobile の出し分け */
+  .t-hero-video--mobile { display: none; }
+  @media (max-width: 760px) {
+    .t-hero-video--desktop { display: none; }
+    .t-hero-video--mobile { display: block; }
+    .t-hero-media {
+      aspect-ratio: var(--t-hero-aspect-mobile, 4 / 5);
+    }
+  }
+
+  .t-prompt {
+    margin: 0 0 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+  }
+
+  .caret {
+    color: var(--accent-deep);
+    font-weight: 600;
+    margin-right: 0.4em;
+  }
+
+  .t-hero-title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: clamp(1.4rem, 3.6vw, 2.4rem);
+    line-height: 1.35;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    max-width: 38ch;
+  }
+
+  /* ============================================================
+     Works grid
+     ============================================================ */
+  .t-works {
+    padding-block: clamp(2rem, 4vw, 3rem) clamp(4rem, 8vw, 6rem);
+  }
+
+  .t-works-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: clamp(1.4rem, 3vw, 2rem);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.6rem;
+  }
+
+  .t-eyebrow {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+  }
+
+  .t-count {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+  }
+
+  /* 3:4 サムネイルが等間隔で並ぶ。auto-fill で画面幅に応じて列数が変わる。
+     最小幅 200px、最大は均等分配。隙間は揃っているので「等間隔」になる。 */
+  .t-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: clamp(1.5rem, 3vw, 2.5rem) clamp(1rem, 2vw, 1.5rem);
+  }
+
+  @media (max-width: 480px) {
+    .t-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.4rem 0.8rem;
+    }
+  }
+
+  .t-empty {
+    background: var(--bg-soft);
+    color: var(--ink-soft);
+    padding: 2.5rem;
+    text-align: center;
+    border: 1px solid var(--line);
+    line-height: 1.7;
+    max-width: 520px;
+    margin-inline: auto;
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+  }
+</style>

@@ -1,0 +1,68 @@
+name: Build & deploy to GitHub Pages
+
+on:
+  # main へのpushで自動デプロイ
+  push:
+    branches: [main]
+
+  # 手動で再デプロイ(Actionsタブからボタンで実行)
+  workflow_dispatch:
+
+  # 6時間ごとに自動再ビルド(Notionの編集を取り込む)
+  schedule:
+    - cron: '0 */6 * * *'
+
+  # Notion → Webhook で repository_dispatch を投げると即時反映できる
+  repository_dispatch:
+    types: [notion-update]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行の制御(進行中のデプロイは中断しない)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_WORKS_DB_ID: ${{ secrets.NOTION_WORKS_DB_ID }}
+          NOTION_PROFILE_DB_ID: ${{ secrets.NOTION_PROFILE_DB_ID }}
+          NOTION_VIEWERS_DB_ID: ${{ secrets.NOTION_VIEWERS_DB_ID }}
+          NOTION_HERO_DB_ID: ${{ secrets.NOTION_HERO_DB_ID }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

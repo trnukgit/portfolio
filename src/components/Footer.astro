@@ -1,0 +1,123 @@
+---
+import { SITE, strings, type Lang } from '../config';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = strings(lang);
+---
+
+<footer class="site-footer" id="contact">
+  <div class="container footer-inner">
+    <div class="left">
+      <p class="eyebrow">{t.footer.eyebrow}</p>
+      <p class="lead">{t.footer.lead}</p>
+    </div>
+
+    <ul class="links">
+      {SITE.contacts.map((c) => (
+        <li>
+          <a href={c.href} target="_blank" rel="noopener noreferrer">
+            {c.label}
+            <span class="arrow" aria-hidden="true">↗</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <div class="container copy">
+    <hr class="rule" />
+    <small>{SITE.copyright}</small>
+    <small class="meta">Built with Astro · Notion · GitHub Pages</small>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: clamp(4rem, 10vw, 8rem);
+    padding-block: clamp(3rem, 6vw, 5rem) 2rem;
+    background: var(--bg-deep);
+    border-top: 1px solid var(--line);
+    color: var(--ink);
+  }
+
+  .footer-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    align-items: end;
+  }
+
+  @media (min-width: 720px) {
+    .footer-inner {
+      grid-template-columns: 1fr auto;
+    }
+  }
+
+  .lead {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    margin: 0.6rem 0 0;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--ink-soft);
+    border-bottom: 1px solid transparent;
+    transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+  }
+
+  .links a:hover {
+    color: var(--ink);
+    border-color: var(--accent);
+  }
+
+  .arrow {
+    font-size: 0.8em;
+    color: var(--ink-muted);
+    transition: color 0.2s var(--ease);
+  }
+
+  .links a:hover .arrow {
+    color: var(--accent-deep);
+  }
+
+  .copy {
+    margin-top: clamp(3rem, 6vw, 5rem);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    color: var(--ink-muted);
+    font-size: 0.74rem;
+    font-family: var(--font-mono);
+  }
+
+  .rule {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin-bottom: 1.2rem;
+    width: 100%;
+    flex-basis: 100%;
+  }
+</style>

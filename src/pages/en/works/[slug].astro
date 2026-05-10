@@ -1,0 +1,37 @@
+---
+import WorkDetail from '../../../components/WorkDetail.astro';
+import type { Work } from '../../../lib/types';
+
+export async function getStaticPaths() {
+  const works = (await import('../../../data/works.en.json')).default as Work[];
+  const jaList = (await import('../../../data/works.ja.json')).default as Work[];
+  const jaIds = new Set(jaList.map((w) => w.id));
+
+  return works.map((work, i) => ({
+    params: { slug: work.slug },
+    props: {
+      work,
+      prev: i > 0 ? works[i - 1] : null,
+      next: i < works.length - 1 ? works[i + 1] : null,
+      hasOtherLang: jaIds.has(work.id),
+    },
+  }));
+}
+
+interface Props {
+  work: Work;
+  prev: Work | null;
+  next: Work | null;
+  hasOtherLang: boolean;
+}
+
+const { work, prev, next, hasOtherLang } = Astro.props;
+---
+
+<WorkDetail
+  lang="en"
+  work={work}
+  prev={prev}
+  next={next}
+  hasOtherLang={hasOtherLang}
+/>

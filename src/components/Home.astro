@@ -1,0 +1,427 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+import WorkCard from './WorkCard.astro';
+import About from './About.astro';
+import { strings, type Lang, VIEWERS } from '../config';
+import type { Work, Hero } from '../lib/types';
+import { langHome, url } from '../lib/url';
+import { assignPlacements } from '../lib/wall-layout';
+import viewersData from '../data/viewers.json';
+import heroData from '../data/hero.json';
+
+interface Props {
+  lang: Lang;
+  works: Work[];
+}
+
+const { lang, works } = Astro.props;
+const t = strings(lang);
+const altLangPath = langHome(lang === 'ja' ? 'en' : 'ja');
+
+// クラスター配置を計算 → Notion で個別 Frame が指定されていれば上書き
+const placements = assignPlacements(works.length).map((p, i) =>
+  works[i]?.frame ? { ...p, frame: works[i].frame as typeof p.frame } : p
+);
+
+type PanelGroup = { works: Work[]; placements: typeof placements; index: number };
+const panels: PanelGroup[] = [];
+for (let i = 0; i < works.length; i++) {
+  const p = placements[i];
+  if (!panels[p.panelIndex]) {
+    panels[p.panelIndex] = { works: [], placements: [], index: p.panelIndex };
+  }
+  panels[p.panelIndex].works.push(works[i]);
+  panels[p.panelIndex].placements.push(p);
+}
+
+let cumulative = 0;
+
+// ----- 鑑賞者(viewers)用の選定とX位置 -----
+
+// viewers.json は以下のいずれかの形式を許容する:
+//   - 旧形式: ["images/viewers/man1.png", ...]            ← 全員同じ高さ
+//   - 新形式: [{path,width,height}, ...]                  ← 元画像の比率で相対表示
+type ViewerImage = { path: string; width: number | null; height: number | null };
+
+const rawViewers = (viewersData as Array<string | ViewerImage>) ?? [];
+const viewerImages: ViewerImage[] = rawViewers
+  .map((v) => (typeof v === 'string' ? { path: v, width: null, height: null } : v))
+  .filter((v) => !!v.path);
+
+// 一番背の高い viewer を 1.0 として、他は (height / maxH) で縮小する。
+// 寸法不明なものは 1.0 扱い(後方互換)。
+const maxViewerHeight = Math.max(
+  1,
+  ...viewerImages.map((v) => v.height ?? 0)
+);
+
+// VIEWERS.count 個を、隣同士で同じ画像にならないように決定論的に選ぶ。
+// images が複数あるなら round-robin (i % len) で十分(隣に同じが来ない)。
+function pickViewers(images: ViewerImage[], count: number): ViewerImage[] {
+  if (images.length === 0 || count <= 0) return [];
+  if (images.length === 1) return Array(count).fill(images[0]);
+  const out: ViewerImage[] = [];
+  for (let i = 0; i < count; i++) out.push(images[i % images.length]);
+  return out;
+}
+
+const chosenViewers = pickViewers(viewerImages, VIEWERS.count);
+
+// X 位置の決定論的なスタッガー(等間隔ではなくジッター付き)
+function computeViewerXs(n: number, jitterPct: number): number[] {
+  if (n === 0) return [];
+  const xs: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const center = ((i + 0.5) / n) * 100;
+    // i に応じて -j, +j, 0 を循環(同じ並びでも自然な不揃い感)
+    const offset =
+      i % 3 === 0 ? -jitterPct : i % 3 === 1 ? jitterPct : 0;
+    xs.push(Math.max(2, Math.min(98, center + offset)));
+  }
+  return xs;
+}
+
+const viewerXs = computeViewerXs(chosenViewers.length, VIEWERS.jitter);
+
+// ヒーロー背景イラスト
+const hero = (heroData ?? { image: null, imageMobile: null }) as Hero;
+const heroDesktop = hero.image;
+const heroMobile = hero.imageMobile || hero.image;  // モバイル未設定なら PC 兼用
+---
+
+<Layout lang={lang} altLangPath={altLangPath}>
+  <Header lang={lang} altLangPath={altLangPath} />
+
+  <main>
+    <!-- ===== Hero ===== -->
+    <section class="hero">
+      {heroDesktop && (
+        <picture class="hero-bg" aria-hidden="true">
+          {heroMobile && heroMobile !== heroDesktop && (
+            <source media="(max-width: 760px)" srcset={url(heroMobile)} />
+          )}
+          <img src={url(heroDesktop)} alt="" loading="eager" decoding="async" />
+        </picture>
+      )}
+      <div class="container hero-inner">
+        <p class="hero-eyebrow">
+          <span class="dash">—</span> {t.year}
+        </p>
+        <h1 class="hero-title" set:html={t.heroTitleHTML} />
+      </div>
+    </section>
+
+    <!-- ===== Cluster wall (selected works) ===== -->
+    <section id="works" class="wall-section">
+      <div class="container">
+        <header class="wall-head">
+          <p class="eyebrow">{t.works.eyebrow}</p>
+          {(t.works.countSuffix || t.works.hint) && (
+            <p class="wall-meta">
+              {t.works.countSuffix && (
+                <span>{works.length}{t.works.countSuffix}</span>
+              )}
+              {t.works.countSuffix && t.works.hint && (
+                <span class="sep" aria-hidden="true">·</span>
+              )}
+              {t.works.hint && <span class="hint">{t.works.hint}</span>}
+            </p>
+          )}
+        </header>
+
+        {works.length === 0 ? (
+          <div class="empty">
+            <p>{t.works.empty}</p>
+          </div>
+        ) : (
+          <div class="wall">
+            {panels.map((panel, pi) => {
+              const startIdx = cumulative;
+              cumulative += panel.works.length;
+              return (
+                <div class="wall-panel" data-panel={pi}>
+                  {panel.works.map((w, i) => (
+                    <WorkCard
+                      work={w}
+                      index={startIdx + i}
+                      lang={lang}
+                      placement={panel.placements[i]}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+
+            {chosenViewers.length > 0 && (
+              <div
+                class="viewers"
+                style={`--viewer-opacity:${VIEWERS.opacity}`}
+                aria-hidden="true"
+              >
+                {chosenViewers.map((v, i) => {
+                  // 相対高さ:この画像が一番背高い viewer に対してどれくらいか
+                  const relH = v.height ? v.height / maxViewerHeight : 1;
+                  return (
+                    <img
+                      class="viewer"
+                      src={url(v.path)}
+                      alt=""
+                      style={`left:${viewerXs[i]}%;--rel-h:${relH.toFixed(4)}`}
+                      data-i={i}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+
+    <About lang={lang} />
+  </main>
+
+  <Footer lang={lang} />
+</Layout>
+
+<script>
+  import '../scripts/center-reveal.ts';
+  import '../scripts/viewers-parallax.ts';
+</script>
+
+<style>
+  /* ============================================================
+     Hero — modern minimal: just type
+     ============================================================ */
+  .hero {
+    position: relative;
+    padding-block: clamp(2.5rem, 6vw, 5rem) clamp(2rem, 4vw, 3.5rem);
+    overflow: hidden;     /* 背景イラストが Wall セクションに被らないようクリップ */
+    isolation: isolate;   /* 背景の z-index を Hero 内で完結させる */
+  }
+
+  /* 透過イラストの背景。.hero の中だけに収まるようクリップされる。
+     大きさ・位置・透明度は CSS 変数で調整可能(:root か :where(.hero) に上書き)。 */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;          /* 文字の後ろに */
+    display: block;
+    /* デフォルト不透明度。透過 PNG なので 1 でも本文は読める前提。 */
+    opacity: var(--hero-bg-opacity, 1);
+  }
+  .hero-bg img {
+    width: 100%;
+    height: 100%;
+    /* contain: 切り取らずに全体を見せる(余白が出る)。
+       cover にすると領域いっぱいに広げて切り取る。お好みで切替。 */
+    object-fit: var(--hero-bg-fit, contain);
+    /* 既定は右寄せ(PC ではテキストが左、イラストが右に来る配置を想定)。
+       中央に置きたい場合は --hero-bg-position: center。 */
+    object-position: var(--hero-bg-position, right center);
+  }
+
+  /* モバイル: ヒーロー画像をテキストの下に縦並びで配置(重ならない) */
+  @media (max-width: 760px) {
+    .hero {
+      /* テキスト → 画像 の順で flex 縦並び */
+      display: flex;
+      flex-direction: column;
+      /* PC で必要だった padding-bottom を縮める(画像が下にくるので) */
+      padding-block: clamp(2rem, 5vw, 3rem) clamp(1rem, 2.5vw, 1.5rem);
+    }
+    .hero-inner {
+      order: 1;
+    }
+    .hero-bg {
+      order: 2;
+      /* 絶対配置をやめて通常フロー(テキストの下) */
+      position: relative;
+      inset: auto;
+      width: 100%;
+      height: auto;
+      z-index: 0;
+      /* 画像とテキストの間隔・画像の下の間隔は CSS 変数で後から調整可能 */
+      margin-top: var(--hero-bg-mobile-margin-top, 1.5rem);
+      margin-bottom: var(--hero-bg-mobile-margin-bottom, 0);
+      opacity: var(--hero-bg-opacity-mobile, 1);  /* 重ならないので透過させる必要なし */
+    }
+    .hero-bg img {
+      /* 画像本来のアスペクト比のまま、横幅に合わせて表示 */
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      /* モバイルは画像専用領域なので、cover/contain どちらでも見栄えは同じ */
+    }
+  }
+
+  .hero-inner {
+    position: relative;   /* 背景の上に */
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .hero-eyebrow {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7em;
+  }
+
+  .hero-eyebrow .dash {
+    color: var(--accent-deep);
+  }
+
+  .hero-title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: clamp(1.6rem, 3.6vw, 2.6rem);
+    line-height: 1.18;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    max-width: 22ch;
+  }
+
+  /* Lime accent on emphasized portion(<strong>) — using box-shadow
+     to create a marker-style highlight without using a gradient */
+  .hero-title :global(strong) {
+    font-weight: 500;
+    box-shadow: inset 0 -0.32em 0 var(--accent);
+    padding: 0 0.05em;
+  }
+
+  /* ============================================================
+     Wall section
+     ============================================================ */
+  .wall-section {
+    padding-block: clamp(2rem, 4vw, 3rem) clamp(5rem, 10vw, 8rem);
+  }
+
+  .wall-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: clamp(2rem, 4vw, 3rem);
+  }
+
+  .wall-meta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+  }
+
+  .wall-meta .sep {
+    margin-inline: 0.5rem;
+    color: var(--ink-muted);
+  }
+
+  .wall-meta .hint {
+    color: var(--ink-muted);
+  }
+
+  .wall {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    position: relative;
+    /* Allow viewers to extend slightly beyond the wall vertically */
+  }
+
+  /* ============================================================
+     Viewers (gallery on-lookers) — absolutely positioned;
+     vertical position is controlled by viewers-parallax.ts script.
+     Bobbing animation in CSS keyframes (offset per child).
+     ============================================================ */
+  .viewers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--viewer-h);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .viewer {
+    position: absolute;
+    bottom: 0;
+    /* --rel-h: この viewer の元画像の高さが、全 viewer の最大高さに対して
+       どれくらいかの比率(0〜1)。1 = 一番背が高い、0.5 = 半分の高さ。
+       未指定(寸法不明)なら 1 にフォールバック。 */
+    height: calc(var(--viewer-h) * var(--rel-h, 1));
+    width: auto;
+    transform: translateX(-50%);
+    opacity: var(--viewer-opacity, 1);
+    user-select: none;
+    /* The bobbing animation — 2 frames, snap (no smooth interpolation),
+       offset durations and delays so they don't sync up */
+    animation: viewer-bob 1.4s steps(1, end) infinite;
+    will-change: transform;
+  }
+  /* Stagger timing so people don't bob in unison */
+  .viewer[data-i="0"] { animation-duration: 1.20s; animation-delay: 0.00s; }
+  .viewer[data-i="1"] { animation-duration: 1.65s; animation-delay: -0.55s; }
+  .viewer[data-i="2"] { animation-duration: 1.40s; animation-delay: -0.20s; }
+  .viewer[data-i="3"] { animation-duration: 1.55s; animation-delay: -0.85s; }
+  .viewer[data-i="4"] { animation-duration: 1.30s; animation-delay: -0.40s; }
+  .viewer[data-i="5"] { animation-duration: 1.75s; animation-delay: -0.10s; }
+  .viewer[data-i="6"] { animation-duration: 1.45s; animation-delay: -0.65s; }
+  .viewer[data-i="7"] { animation-duration: 1.60s; animation-delay: -0.30s; }
+
+  @keyframes viewer-bob {
+    /* 2 frames: rest position, then a tiny up-or-up-diagonal hop */
+    0%, 49.9%   { transform: translate(-50%, 0); }
+    50%, 100%   { transform: translate(calc(-50% - 1px), -4px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .viewer { animation: none !important; }
+  }
+
+  .wall-panel {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2.7 / 1;
+    /* Reserve space for captions which extend below frames */
+    padding-bottom: 1.5rem;
+    box-sizing: content-box;
+  }
+
+  /* Mobile: panel collapses, cards stack */
+  @media (max-width: 760px) {
+    .wall-panel {
+      aspect-ratio: auto;
+      padding-bottom: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+  }
+
+  /* Empty state */
+  .empty {
+    background: var(--bg-soft);
+    color: var(--ink-soft);
+    padding: 2.5rem;
+    text-align: center;
+    border: 1px solid var(--line);
+    line-height: 1.7;
+    max-width: 520px;
+    margin-inline: auto;
+    font-size: 0.92rem;
+  }
+</style>

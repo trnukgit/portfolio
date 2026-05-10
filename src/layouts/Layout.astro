@@ -1,0 +1,58 @@
+---
+import '../styles/global.css';
+import { strings, DESIGN, type Lang } from '../config';
+import { url } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+  /** 切り替え先の言語のページ URL(同等のページが無い場合は他言語のトップを指す) */
+  altLangPath: string;
+  /** タイトル(作品名など。指定しなければサイト全体のタイトルになる) */
+  title?: string;
+  description?: string;
+}
+
+const { lang, altLangPath, title, description } = Astro.props;
+const t = strings(lang);
+const pageTitle = title ? `${title} — ${t.name}` : t.title;
+const pageDescription = description ?? t.description;
+
+// HTML の lang 属性
+const htmlLang = lang === 'ja' ? 'ja' : 'en';
+---
+
+<!doctype html>
+<html lang={htmlLang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={pageDescription} />
+    <title>{pageTitle}</title>
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:locale" content={lang === 'ja' ? 'ja_JP' : 'en_US'} />
+
+    <!-- 代替言語の hreflang -->
+    <link rel="alternate" hreflang={lang === 'ja' ? 'en' : 'ja'} href={altLangPath} />
+    <link rel="alternate" hreflang={htmlLang} href={Astro.url.pathname} />
+
+    <meta name="theme-color" content="#ECE9DD" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href={url('favicon.svg')} />
+    <meta name="generator" content={Astro.generator} />
+  </head>
+  <body data-design={DESIGN}>
+    <slot />
+  </body>
+</html>

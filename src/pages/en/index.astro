@@ -1,0 +1,14 @@
+---
+import { DESIGN } from '../../config';
+import HomeGallery from '../../components/Home.astro';
+import HomeTerminal from '../../components/HomeTerminal.astro';
+import worksData from '../../data/works.en.json';
+import type { Work } from '../../lib/types';
+const works = worksData as Work[];
+---
+
+{DESIGN === 'terminal' ? (
+  <HomeTerminal lang="en" works={works} />
+) : (
+  <HomeGallery lang="en" works={works} />
+)}

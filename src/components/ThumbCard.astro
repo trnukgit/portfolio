@@ -1,0 +1,118 @@
+---
+import type { Work } from '../lib/types';
+import { strings, type Lang } from '../config';
+import { url, workUrl } from '../lib/url';
+
+interface Props {
+  work: Work;
+  index: number;
+  lang: Lang;
+}
+
+const { work, index, lang } = Astro.props;
+const t = strings(lang);
+const href = workUrl(lang, work.slug);
+
+const num = String(index + 1).padStart(2, '0');
+const year = work.date ? new Date(work.date).getFullYear() : null;
+---
+
+<a class="thumb" href={href}>
+  <div class="thumb-frame">
+    {work.cover ? (
+      <img class="thumb-img" src={url(work.cover)} alt={work.title} loading="lazy" />
+    ) : (
+      <div class="thumb-placeholder" aria-hidden="true">
+        <span class="ph-num">{num}</span>
+      </div>
+    )}
+  </div>
+  <div class="thumb-meta">
+    <p class="thumb-title">{work.title}</p>
+    <p class="thumb-caption">
+      <span class="hash">#</span>
+      {[work.tags?.[0], year].filter(Boolean).join(' · ')}
+    </p>
+  </div>
+</a>
+
+<style>
+  .thumb {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .thumb-frame {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    background: #fff;
+    border: 1px solid var(--ink);
+    overflow: hidden;
+    transition: border-color 0.2s var(--ease);
+  }
+
+  .thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.2s var(--ease);
+  }
+
+  .thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-deep);
+    display: grid;
+    place-items: center;
+  }
+
+  .ph-num {
+    font-family: var(--font-mono);
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    color: var(--ink-muted);
+    letter-spacing: 0.04em;
+  }
+
+  .thumb-meta {
+    margin-top: 0.7rem;
+  }
+
+  .thumb-title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+
+  .thumb-caption {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: var(--ink-muted);
+    letter-spacing: 0.02em;
+  }
+
+  .hash {
+    color: var(--accent-deep);
+    margin-right: 0.2em;
+  }
+
+  /* hover: 額縁色をライムに、画像をわずかに薄く */
+  @media (hover: hover) and (pointer: fine) {
+    .thumb:hover .thumb-frame,
+    .thumb:focus-visible .thumb-frame {
+      border-color: var(--accent-deep);
+    }
+    .thumb:hover .thumb-img {
+      opacity: 0.92;
+    }
+    .thumb:hover .thumb-title {
+      box-shadow: inset 0 -1px 0 var(--accent);
+    }
+  }
+</style>
